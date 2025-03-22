@@ -17,7 +17,7 @@
 ### 通过pip安装
 
 ```bash
-pip install crypto-mcp
+pip install crypto_mcp
 ```
 
 ### 手动安装
@@ -25,8 +25,8 @@ pip install crypto-mcp
 克隆仓库并安装依赖：
 
 ```bash
-git clone https://github.com/telegramtool/crypto-mcp.git
-cd crypto-mcp
+git clone https://github.com/telegramtool/crypto_mcp.git
+cd crypto_mcp
 pip install -r requirements.txt
 ```
 
@@ -37,7 +37,7 @@ pip install -r requirements.txt
 安装后，可以直接使用以下命令运行MCP服务器：
 
 ```bash
-crypto-mcp
+crypto_mcp
 ```
 
 ### 在Claude桌面应用中配置
@@ -48,7 +48,7 @@ crypto-mcp
 {
   "mcpServers": {
     "crypto": {
-      "command": "crypto-mcp",
+      "command": "crypto_mcp",
       "args": [],
       "env": {}
     }
@@ -64,7 +64,7 @@ crypto-mcp
 {
   "mcpServers": {
     "crypto": {
-      "command": "crypto-mcp",
+      "command": "crypto_mcp",
       "args": [],
       "env": {}
     }
@@ -80,7 +80,7 @@ crypto-mcp
 {
   "mcpServers": {
     "crypto-price": {
-      "command": "crypto-mcp",
+      "command": "crypto_mcp",
       "args": [],
       "env": {}
     }
