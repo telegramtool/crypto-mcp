@@ -108,7 +108,6 @@ pip install -r requirements.txt
 
 * [CoinGecko API](https://www.coingecko.com/en/api)
 * [Bitget API](https://bitgetlimited.github.io/apidoc/en/spot)
-* [Model Context Protocol](https://github.com/hyperbrowserai/mcp)
 
 ## 许可证
 
