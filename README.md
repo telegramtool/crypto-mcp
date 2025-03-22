@@ -20,6 +20,14 @@
 pip install crypto_mcp
 ```
 
+### 安装 via Smithery
+
+要安装 Crypto MCP for Claude Desktop 自动通过 [Smithery](https://clis.smithery.ai/server/@telegramtool/crypto_mcp), 执行以下命令:
+
+```bash
+npx -y @smithery/cli install @telegramtool/crypto_mcp --client claude
+```
+
 ### 手动安装
 
 克隆仓库并安装依赖：
