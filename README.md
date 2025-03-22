@@ -32,27 +32,21 @@ pip install -r requirements.txt
 
 ## 使用方法
 
-### 直接运行
-
-安装后，可以直接使用以下命令运行MCP服务器：
-
-```bash
-crypto_mcp
-```
-
 ### 在Claude桌面应用中配置
 
 将以下配置添加到Claude桌面客户端的配置文件中：
 
 ```json
 {
-  "mcpServers": {
-    "crypto": {
-      "command": "crypto_mcp",
-      "args": [],
-      "env": {}
+    "mcpServers": {
+        "crypto_mcp": {
+            "command": "uv",
+            "args": [
+                "run",
+                "-m",
+                "crypto_mcp"]
+        }
     }
-  }
 }
 ```
 
@@ -62,13 +56,15 @@ crypto_mcp
 
 ```json
 {
-  "mcpServers": {
-    "crypto": {
-      "command": "crypto_mcp",
-      "args": [],
-      "env": {}
+    "mcpServers": {
+        "crypto_mcp": {
+            "command": "uv",
+            "args": [
+                "run",
+                "-m",
+                "crypto_mcp"]
+        }
     }
-  }
 }
 ```
 
@@ -78,13 +74,15 @@ crypto_mcp
 
 ```json
 {
-  "mcpServers": {
-    "crypto-price": {
-      "command": "crypto_mcp",
-      "args": [],
-      "env": {}
+    "mcpServers": {
+        "crypto_mcp": {
+            "command": "uv",
+            "args": [
+                "run",
+                "-m",
+                "crypto_mcp"]
+        }
     }
-  }
 }
 ```
 
