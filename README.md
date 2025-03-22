@@ -20,13 +20,15 @@
 pip install crypto_mcp
 ```
 
-### 安装 via Smithery
+### 安装 via Smithery [推荐]
 
 要安装 Crypto MCP for Claude Desktop 自动通过 [Smithery](https://clis.smithery.ai/server/@telegramtool/crypto_mcp), 执行以下命令:
 
 ```bash
 npx -y @smithery/cli install @telegramtool/crypto_mcp --client claude
 ```
+内含多种安装方式[image](https://github.com/user-attachments/assets/cf999272-9f40-42fd-a764-32302578248a)
+
 
 ### 手动安装
 
@@ -40,28 +42,12 @@ pip install -r requirements.txt
 
 ## 使用方法
 
-### 在Claude桌面应用中配置
-
-将以下配置添加到Claude桌面客户端的配置文件中：
-
-```json
-{
-    "mcpServers": {
-        "crypto_mcp": {
-            "command": "uv",
-            "args": [
-                "run",
-                "-m",
-                "crypto_mcp"]
-        }
-    }
-}
-```
 
 ### 在Cursor中配置
 
 将以下配置添加到`~/.cursor/mcp.json`文件中：
 
+PIP安装:
 ```json
 {
     "mcpServers": {
@@ -75,22 +61,24 @@ pip install -r requirements.txt
     }
 }
 ```
-
-### 在Windsurf中配置
-
-将以下配置添加到`./codeium/windsurf/model_config.json`文件中：
-
+Smithery安装:
 ```json
 {
-    "mcpServers": {
-        "crypto_mcp": {
-            "command": "uv",
-            "args": [
-                "run",
-                "-m",
-                "crypto_mcp"]
-        }
+  "mcpServers": {
+    "crypto_mcp": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@telegramtool/crypto_mcp",
+        "--config",
+        "{}"
+      ]
     }
+  }
 }
 ```
 
