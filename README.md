@@ -27,7 +27,8 @@ pip install crypto_mcp
 ```bash
 npx -y @smithery/cli install @telegramtool/crypto_mcp --client claude
 ```
-[内含多种安装方式]([链接地址](https://clis.smithery.ai/server/@telegramtool/crypto_mcp))
+[内含多种安装方式](https://clis.smithery.ai/server/@telegramtool/crypto_mcp)
+
 ![内含多种安装方式](https://github.com/user-attachments/assets/cf999272-9f40-42fd-a764-32302578248a)
 
 
