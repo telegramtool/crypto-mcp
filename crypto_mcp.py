@@ -165,7 +165,7 @@ def calculate_time_range(granularity="1h", lookback_count=100):
         tuple: (startTime, endTime) 时间戳(毫秒)
     """
     now = datetime.now()
-    end_time = int(now.timestamp() * 1000)  # 毫秒时间戳
+    end_time = int(now.timestamp())  # 毫秒时间戳
 
     # 解析粒度
     if granularity == "1w":
@@ -181,7 +181,7 @@ def calculate_time_range(granularity="1h", lookback_count=100):
         seconds_per_unit = 60 * 60
 
     # 计算开始时间
-    start_time = end_time - (seconds_per_unit * lookback_count * 1000)
+    start_time = end_time - (seconds_per_unit * lookback_count)
 
     return start_time, end_time
 
@@ -193,9 +193,28 @@ def normalize_granularity(granularity):
         granularity: K线粒度，如1m、5m、1h、4h、1d、1w等
 
     Returns:
-        str: 标准化后的K线粒度
+        str: 标准化后的K线粒度或None表示无效粒度
     """
+    # 定义有效的粒度列表
+    valid_granularities = [
+        "1m",
+        "3m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "4h",
+        "6h",
+        "12h",
+        "1d",
+        "1w",
+    ]
     granularity = granularity.lower()
+
+    # 验证粒度是否有效
+    if granularity not in valid_granularities:
+        return None
 
     # 对于周线，API使用1w格式
     if granularity == "1w":
@@ -249,18 +268,18 @@ class CoinglassService:
 
             # 检查HTTP响应状态
             if response.status_code != 200:
-                print(f"API请求失败，状态码: {response.status_code}")
-                return None
+                return f"API请求失败，状态码: {response.status_code}，URL: {url}"
 
             response_json = response.json()
             if not response_json.get("success", False):
-                print(f"API返回错误: {response_json}")
-                return None
+                error_msg = response_json.get("msg", "未知错误")
+                return f"API返回错误: {error_msg}"
 
             user_header = response.headers.get("user")
             if user_header is None:
-                print("响应头中没有找到'user'字段")
-                return response_json.get("data")
+                if "data" in response_json:
+                    return response_json.get("data")
+                return "响应头中没有找到'user'字段，无法解密数据"
 
             data = yt(
                 response_json.get("data"),
@@ -271,14 +290,13 @@ class CoinglassService:
                 try:
                     data = json.loads(data)
                 except json.JSONDecodeError:
-                    print(f"无法解析API返回的数据为JSON")
+                    return f"无法解析API返回的数据为JSON: {data[:200]}..."
 
             # 缓存结果
             self.cache.set(cache_key, data)
             return data
         except Exception as e:
-            print(f"请求或解析过程中出错: {e}")
-            return None
+            return f"请求或解析过程中出错: {str(e)}"
 
     def get_symbol_info(self, symbol):
         """获取币种基本信息，返回pair和exName
@@ -287,13 +305,18 @@ class CoinglassService:
             symbol: 币种符号，如BTC、ETH
 
         Returns:
-            tuple: (pair, exName, 成交额)
+            tuple: (pair, exName, 成交额) 或错误信息
         """
         symbol_upper = symbol.upper()
         list_url = f"https://fapi.coinglass.com/api/select/coins/tickers?keyword={symbol_upper}&exName=&type=Futures"
         data = self.get_coinglass_data(list_url)
+
+        # 检查是否为错误消息
+        if isinstance(data, str):
+            return data, None, None
+
         if not data or len(data) == 0:
-            return None, None, None
+            return f"未找到有关{symbol_upper}的信息", None, None
 
         pair = None
         exName = None
@@ -306,6 +329,9 @@ class CoinglassService:
         if "volUsd" in data[0]:
             成交额 = data[0]["volUsd"]
 
+        if not pair or not exName:
+            return f"找到{symbol_upper}信息但缺少必要的pair或exName数据", None, None
+
         return pair, exName, 成交额
 
     def get_coin_info(self, symbol):
@@ -315,12 +341,12 @@ class CoinglassService:
             symbol: 交易币对, 例如 BTC, ETH
 
         Returns:
-            币种详细信息
+            币种详细信息或错误信息
         """
         pair, exName, _ = self.get_symbol_info(symbol)
 
         if not pair or not exName:
-            return None
+            return f"无法获取{symbol}的标识信息"
 
         url = f"https://fapi.coinglass.com/api/ticker?pair={pair}&exName={exName}&type=Futures"
         return self.get_coinglass_data(url)
@@ -334,15 +360,36 @@ class CoinglassService:
             lookback_count: 需要获取的K线数量，默认100条
 
         Returns:
-            K线数据数组
+            K线数据数组或错误信息
         """
+        # 先验证K线粒度 - 直接在方法内验证，不依赖normalize_granularity的返回值
+        valid_granularities = [
+            "1m",
+            "3m",
+            "5m",
+            "15m",
+            "30m",
+            "1h",
+            "2h",
+            "4h",
+            "6h",
+            "12h",
+            "1d",
+            "1w",
+        ]
+        if granularity.lower() not in valid_granularities:
+            return f"无效的K线粒度: {granularity}，有效值为: {', '.join(valid_granularities)}"
+
+        # 获取API格式粒度
+        api_granularity = normalize_granularity(granularity)
+
+        # 获取对应的pair和exName
         pair, exName, _ = self.get_symbol_info(symbol)
 
         if not pair or not exName:
-            return None
+            return f"无法获取{symbol}的标识信息"
 
         start_time, end_time = calculate_time_range(granularity, lookback_count)
-        api_granularity = normalize_granularity(granularity)
 
         url = f"https://fapi.coinglass.com/api/v2/kline?symbol={exName}_{pair}%23kline&interval={api_granularity}&endTime={end_time}&startTime={start_time}&minLimit=false"
         return self.get_coinglass_data(url)
@@ -356,12 +403,12 @@ class CoinglassService:
             lookback_count: 需要获取的K线数量，默认100条
 
         Returns:
-            持仓信息数据数组
+            持仓信息数据数组或错误信息
         """
         pair, exName, _ = self.get_symbol_info(symbol)
 
         if not pair or not exName:
-            return None
+            return f"无法获取{symbol}的标识信息"
 
         start_time, end_time = calculate_time_range(granularity, lookback_count)
         api_granularity = normalize_granularity(granularity)
@@ -378,11 +425,12 @@ class CoinglassService:
             lookback_count: 需要获取的K线数量，默认100条
 
         Returns:
-            成交量数据数组
+            成交量数据数组或错误信息
         """
         pair, exName, _ = self.get_symbol_info(symbol)
+
         if not pair or not exName:
-            return None
+            return f"无法获取{symbol}的标识信息"
 
         start_time, end_time = calculate_time_range(granularity, lookback_count)
         api_granularity = normalize_granularity(granularity)
@@ -399,14 +447,24 @@ class CoinglassService:
             lookback_count: 需要获取的K线数量，默认100条
 
         Returns:
-            成交额数据数组
+            成交额数据数组或错误信息
         """
         symbol_upper = symbol.upper()
         api_granularity = normalize_granularity(granularity)
 
         # 这个接口不需要pair和exName
         url = f"https://capi.coinglass.com/api/v2/kline?diff=false&minLimit=false&limit={lookback_count}&interval={api_granularity}&symbol=ALL%23{symbol_upper}%23aggregated_spot_buy_sell_usd"
-        return self.get_coinglass_data(url)
+        data = self.get_coinglass_data(url)
+
+        # 检查是否为错误消息
+        if isinstance(data, str):
+            return data
+
+        # 检查空数据
+        if not data or (isinstance(data, list) and len(data) == 0):
+            return f"未找到关于 {symbol} 的成交额数据"
+
+        return data
 
     def get_exchange_position(self, symbol):
         """获取持仓量[各交易所]
@@ -1291,7 +1349,11 @@ async def coinglass_get_coin_info(symbol: str) -> str:
     try:
         data = crypto_service.coinglass_service.get_coin_info(symbol)
         if not data:
-            return f"未找到关于 {symbol} 的合约市场信息，请检查符号是否正确"
+            return f"未找到关于 {symbol} 的合约市场信息"
+
+        # 如果数据是错误消息字符串，直接返回
+        if isinstance(data, str):
+            return data
 
         # 格式化输出
         result = f"{symbol.upper()} 合约市场信息:\n"
@@ -1334,7 +1396,11 @@ async def coinglass_get_kline_data(
             symbol, granularity, lookback_count
         )
         if not data:
-            return f"未找到关于 {symbol} 的K线数据，请检查符号是否正确"
+            return f"未找到关于 {symbol} 的K线数据"
+
+        # 如果数据是错误消息字符串，直接返回
+        if isinstance(data, str):
+            return data
 
         # 格式化结果
         formatted_data = crypto_service.coinglass_service.format_kline_data(data)
@@ -1362,7 +1428,11 @@ async def coinglass_get_position_info(
             symbol, granularity, lookback_count
         )
         if not data:
-            return f"未找到关于 {symbol} 的持仓信息，请检查符号是否正确"
+            return f"未找到关于 {symbol} 的持仓信息"
+
+        # 如果数据是错误消息字符串，直接返回
+        if isinstance(data, str):
+            return data
 
         # 格式化结果
         formatted_data = crypto_service.coinglass_service.format_position_info(data)
@@ -1390,7 +1460,11 @@ async def coinglass_get_trade_volume(
             symbol, granularity, lookback_count
         )
         if not data:
-            return f"未找到关于 {symbol} 的成交量信息，请检查符号是否正确"
+            return f"未找到关于 {symbol} 的成交量信息"
+
+        # 如果数据是错误消息字符串，直接返回
+        if isinstance(data, str):
+            return data
 
         # 格式化结果
         formatted_data = crypto_service.coinglass_service.format_trade_volume(data)
@@ -1418,7 +1492,11 @@ async def coinglass_get_trade_amount(
             symbol, granularity, lookback_count
         )
         if not data:
-            return f"未找到关于 {symbol} 的成交额信息，请检查符号是否正确"
+            return f"未找到关于 {symbol} 的成交额信息"
+
+        # 如果数据是错误消息字符串，直接返回
+        if isinstance(data, str):
+            return data
 
         # 格式化结果
         formatted_data = crypto_service.coinglass_service.format_trade_amount(data)
@@ -1440,7 +1518,11 @@ async def coinglass_get_exchange_position(symbol: str) -> str:
     try:
         data = crypto_service.coinglass_service.get_exchange_position(symbol)
         if not data:
-            return f"未找到关于 {symbol} 的交易所持仓分布信息，请检查符号是否正确"
+            return f"未找到关于 {symbol} 的交易所持仓分布信息"
+
+        # 如果数据是错误消息字符串，直接返回
+        if isinstance(data, str):
+            return data
 
         # 格式化结果
         formatted_data = crypto_service.coinglass_service.format_exchange_position(data)
