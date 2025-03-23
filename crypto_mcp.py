@@ -12,6 +12,7 @@ import base64
 from io import BytesIO
 import warnings
 import json
+from Crypto.Cipher import AES
 
 # 定义缓存文件路径
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
