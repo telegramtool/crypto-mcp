@@ -571,6 +571,31 @@ class CoinglassService:
 
         return result
 
+    def format_large_number(self, number):
+        """将大数字格式化为以万或亿为单位
+
+        Args:
+            number: 要格式化的数字
+
+        Returns:
+            格式化后的字符串
+        """
+        if not isinstance(number, (int, float)) and number != "未知":
+            try:
+                number = float(number)
+            except (ValueError, TypeError):
+                return number
+
+        if number == "未知":
+            return number
+
+        if number >= 100000000:  # 亿
+            return f"{number / 100000000:.2f}亿"
+        elif number >= 10000:  # 万
+            return f"{number / 10000:.2f}万"
+        else:
+            return str(number)
+
     def format_exchange_position(self, data):
         """格式化交易所持仓信息
 
@@ -583,18 +608,99 @@ class CoinglassService:
         if not data:
             return "未能获取交易所持仓信息"
 
-        result = "各交易所持仓信息:\n"
-        result += "交易所\t\t持仓量\t\t持仓比例\n"
-        result += "-" * 60 + "\n"
+        # 设置列宽
+        exchange_width = 15
+        position_width = 25
+        amount_width = 20
+        percent_width = 10
+        change_width = 10
+
+        result = "各交易所合约总持仓信息:\n"
+        result += f"{'交易所':<{exchange_width}}{'持仓量':<{position_width}}{'持仓金额':<{amount_width}}{'持仓比例':<{percent_width}}"
+
+        # 添加持仓量变化和交易量变化表头 - 移除5分钟和15分钟的列
+        result += f"{'30分钟持仓':<{change_width}}{'1小时持仓':<{change_width}}{'4小时持仓':<{change_width}}"
+        result += f"{'30分钟交易':<{change_width}}{'1小时交易':<{change_width}}{'4小时交易':<{change_width}}\n"
+
+        # 更新分隔线长度 - 减少了4个列宽
+        result += (
+            "-"
+            * (
+                exchange_width
+                + position_width
+                + amount_width
+                + percent_width
+                + change_width * 6
+            )
+            + "\n"
+        )
 
         for item in data:
+            openInterestAmount = item.get("openInterestAmount", "未知")
+            symbol = item.get("symbol", "未知")
             exchange_name = item.get("exchangeName", "未知交易所")
-            oi = item.get("oi", "未知")
-            oi_percent = item.get("oiPercent", "未知")
+            # 优先使用openInterest字段，如果不存在则尝试oi字段
+            openInterest = item.get("openInterest", "未知")
+            # 优先使用rate字段，如果不存在则尝试oiPercent字段
+            oi_percent = item.get("rate", "未知")
 
-            result += f"{exchange_name}\t\t{oi}\t\t{oi_percent}%\n"
+            # 格式化比例，确保显示百分号
+            if oi_percent != "未知" and not isinstance(oi_percent, str):
+                oi_percent = f"{oi_percent}%"
+            elif oi_percent != "未知" and not oi_percent.endswith("%"):
+                oi_percent = f"{oi_percent}%"
+
+            # 格式化持仓量和持仓金额为万/亿单位
+            formatted_amount = self.format_large_number(openInterestAmount)
+            formatted_oi = self.format_large_number(openInterest)
+
+            # 组合持仓量和符号
+            position_str = f"{formatted_amount} {symbol}"
+
+            # 获取持仓量变化百分比 - 移除5分钟和15分钟
+            m30_oi_change = self.format_percent(item.get("m30OIChangePercent", "未知"))
+            h1_oi_change = self.format_percent(item.get("h1OIChangePercent", "未知"))
+            h4_oi_change = self.format_percent(item.get("h4OIChangePercent", "未知"))
+
+            # 获取交易量变化百分比 - 移除5分钟和15分钟
+            m30_vol_change = self.format_percent(
+                item.get("m30VolChangePercent", "未知")
+            )
+            h1_vol_change = self.format_percent(item.get("h1VolChangePercent", "未知"))
+            h4_vol_change = self.format_percent(item.get("h4VolChangePercent", "未知"))
+
+            # 使用固定宽度格式化基本信息
+            result += f"{exchange_name:<{exchange_width}}{position_str:<{position_width}}{formatted_oi:<{amount_width}}{oi_percent:<{percent_width}}"
+
+            # 添加持仓量变化和交易量变化 - 移除5分钟和15分钟的列
+            result += f"{m30_oi_change:<{change_width}}{h1_oi_change:<{change_width}}{h4_oi_change:<{change_width}}"
+            result += f"{m30_vol_change:<{change_width}}{h1_vol_change:<{change_width}}{h4_vol_change:<{change_width}}\n"
 
         return result
+
+    def format_percent(self, value):
+        """格式化百分比显示
+
+        Args:
+            value: 百分比值
+
+        Returns:
+            格式化后的百分比字符串
+        """
+        if value == "未知":
+            return "未知"
+        try:
+            if isinstance(value, (int, float)):
+                # 根据正负值添加颜色标识
+                if value > 0:
+                    return f"+{value:.2f}%"
+                elif value < 0:
+                    return f"{value:.2f}%"
+                else:
+                    return f"0.00%"
+            return value
+        except:
+            return "未知"
 
 
 class AdvancedCryptoPriceService:
