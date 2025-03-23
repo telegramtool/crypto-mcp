@@ -230,7 +230,7 @@ class CoinglassService:
     def __init__(self):
         self.cache = CryptoCache(cache_duration=15)  # 使用15分钟缓存时间
 
-    def get_coinglass_data(self, url):
+    def get_data(self, url):
         """获取Coinglass API数据
 
         Args:
@@ -239,7 +239,7 @@ class CoinglassService:
         Returns:
             解密后的API数据
         """
-        cache_key = f"coinglass_{url}"
+        cache_key = f"{url}"
         cached_data = self.cache.get(cache_key)
         if cached_data:
             return cached_data
@@ -309,7 +309,7 @@ class CoinglassService:
         """
         symbol_upper = symbol.upper()
         list_url = f"https://fapi.coinglass.com/api/select/coins/tickers?keyword={symbol_upper}&exName=&type=Futures"
-        data = self.get_coinglass_data(list_url)
+        data = self.get_data(list_url)
 
         # 检查是否为错误消息
         if isinstance(data, str):
@@ -349,7 +349,7 @@ class CoinglassService:
             return f"无法获取{symbol}的标识信息"
 
         url = f"https://fapi.coinglass.com/api/ticker?pair={pair}&exName={exName}&type=Futures"
-        return self.get_coinglass_data(url)
+        return self.get_data(url)
 
     def get_kline_data(self, symbol, granularity="1h", lookback_count=100):
         """获取K线数据
@@ -392,7 +392,7 @@ class CoinglassService:
         start_time, end_time = calculate_time_range(granularity, lookback_count)
 
         url = f"https://fapi.coinglass.com/api/v2/kline?symbol={exName}_{pair}%23kline&interval={api_granularity}&endTime={end_time}&startTime={start_time}&minLimit=false"
-        return self.get_coinglass_data(url)
+        return self.get_data(url)
 
     def get_position_info(self, symbol, granularity="1h", lookback_count=100):
         """获取持仓信息
@@ -414,7 +414,7 @@ class CoinglassService:
         api_granularity = normalize_granularity(granularity)
 
         url = f"https://fapi.coinglass.com/api/v2/kline?symbol={exName}_{pair}%23coin%23oi_kline&interval={api_granularity}&endTime={end_time}&startTime={start_time}&minLimit=false"
-        return self.get_coinglass_data(url)
+        return self.get_data(url)
 
     def get_trade_volume(self, symbol, granularity="1h", lookback_count=100):
         """获取成交量[买入卖出的交易币数量]
@@ -436,7 +436,7 @@ class CoinglassService:
         api_granularity = normalize_granularity(granularity)
 
         url = f"https://fapi.coinglass.com/api/v2/kline?symbol={exName}_{pair}%23buy_sell_qty_kline&interval={api_granularity}&endTime={end_time}&startTime={start_time}&minLimit=false"
-        return self.get_coinglass_data(url)
+        return self.get_data(url)
 
     def get_trade_amount(self, symbol, granularity="1h", lookback_count=100):
         """获取成交额[买入卖出的美金]
@@ -454,7 +454,7 @@ class CoinglassService:
 
         # 这个接口不需要pair和exName
         url = f"https://capi.coinglass.com/api/v2/kline?diff=false&minLimit=false&limit={lookback_count}&interval={api_granularity}&symbol=ALL%23{symbol_upper}%23aggregated_spot_buy_sell_usd"
-        data = self.get_coinglass_data(url)
+        data = self.get_data(url)
 
         # 检查是否为错误消息
         if isinstance(data, str):
@@ -481,7 +481,7 @@ class CoinglassService:
         url = (
             f"https://capi.coinglass.com/api/openInterest/ex/info?symbol={symbol_upper}"
         )
-        return self.get_coinglass_data(url)
+        return self.get_data(url)
 
     def format_kline_data(self, data):
         """格式化K线数据
@@ -714,7 +714,7 @@ class AdvancedCryptoPriceService:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         }
         self.cache = CryptoCache()
-        self.coinglass_service = CoinglassService()  # 添加Coinglass服务
+        self.service = CoinglassService()  # 添加Coinglass服务
 
     def _make_request(self, endpoint, params=None, cache_key=None):
         """发送API请求并处理缓存逻辑
@@ -1405,47 +1405,9 @@ async def get_common_coins_prices() -> str:
         return f"获取常见币种价格出错: {str(e)}"
 
 
-@mcp.tool()
-async def get_k_line_data(
-    symbol: str,
-    granularity: str = "1h",
-    limit: int = 100,
-    k_line_type: str = "MARKET",
-) -> str:
-    """获取虚拟币的K线数据
-
-    Args:
-        symbol: 交易币对, 例如 BTCUSDT, ETHUSDT
-        granularity: K线粒度, 默认1h (可选: 1m, 3m, 5m, 15m, 30m, 1h, 4h, 6h, 12h, 1d, 1w等)
-        limit: 返回数据条数, 默认100, 最大1000
-        k_line_type: K线类型, 默认MARKET (可选: MARKET, MARK, INDEX)
-
-    Returns:
-        数组格式如下: index[0] 是时间戳, 如 1742652000 代表时间:2025-3-22 22:00:00; index[1] 是开盘价; index[2] 是最高价; index[3] 是最低价; index[4] 是收盘价, 最新一个收盘价可能还在持续更新; index[5] 是交易币成交量；
-    """
-    try:
-        candle_data = crypto_service.get_candle_data(
-            symbol=symbol,
-            granularity=granularity,
-            k_line_type=k_line_type,
-            limit=limit,
-        )
-
-        if not candle_data or candle_data.get("code") != "00000":
-            error_msg = (
-                candle_data.get("msg", "未知错误") if candle_data else "获取数据失败"
-            )
-            return f"获取K线数据失败: {error_msg}"
-
-        result = crypto_service.format_candle_data(candle_data, granularity)
-        return result
-    except Exception as e:
-        return f"获取K线数据时出错: {str(e)}"
-
-
 # Coinglass API工具
 @mcp.tool()
-async def coinglass_get_coin_info(symbol: str) -> str:
+async def get_coin_info(symbol: str) -> str:
     """获取虚拟币的合约市场信息 (Coinglass API)
 
     Args:
@@ -1455,7 +1417,7 @@ async def coinglass_get_coin_info(symbol: str) -> str:
         包含币种在合约市场的详细信息
     """
     try:
-        data = crypto_service.coinglass_service.get_coin_info(symbol)
+        data = crypto_service.service.get_coin_info(symbol)
         if not data:
             return f"未找到关于 {symbol} 的合约市场信息"
 
@@ -1486,7 +1448,7 @@ async def coinglass_get_coin_info(symbol: str) -> str:
 
 
 @mcp.tool()
-async def coinglass_get_kline_data(
+async def get_kline_data(
     symbol: str, granularity: str = "1h", lookback_count: int = 100
 ) -> str:
     """获取虚拟币合约的K线数据 (Coinglass API)
@@ -1500,7 +1462,7 @@ async def coinglass_get_kline_data(
         包含K线数据的格式化信息
     """
     try:
-        data = crypto_service.coinglass_service.get_kline_data(
+        data = crypto_service.service.get_kline_data(
             symbol, granularity, lookback_count
         )
         if not data:
@@ -1511,14 +1473,14 @@ async def coinglass_get_kline_data(
             return data
 
         # 格式化结果
-        formatted_data = crypto_service.coinglass_service.format_kline_data(data)
+        formatted_data = crypto_service.service.format_kline_data(data)
         return formatted_data
     except Exception as e:
         return f"获取K线数据时出错: {str(e)}"
 
 
 @mcp.tool()
-async def coinglass_get_position_info(
+async def get_position_info(
     symbol: str, granularity: str = "1h", lookback_count: int = 100
 ) -> str:
     """获取虚拟币合约的持仓信息 (Coinglass API)
@@ -1532,7 +1494,7 @@ async def coinglass_get_position_info(
         包含持仓信息的格式化数据
     """
     try:
-        data = crypto_service.coinglass_service.get_position_info(
+        data = crypto_service.service.get_position_info(
             symbol, granularity, lookback_count
         )
         if not data:
@@ -1543,14 +1505,14 @@ async def coinglass_get_position_info(
             return data
 
         # 格式化结果
-        formatted_data = crypto_service.coinglass_service.format_position_info(data)
+        formatted_data = crypto_service.service.format_position_info(data)
         return formatted_data
     except Exception as e:
         return f"获取持仓信息时出错: {str(e)}"
 
 
 @mcp.tool()
-async def coinglass_get_trade_volume(
+async def get_trade_volume(
     symbol: str, granularity: str = "1h", lookback_count: int = 100
 ) -> str:
     """获取虚拟币合约的成交量信息 (Coinglass API)
@@ -1564,7 +1526,7 @@ async def coinglass_get_trade_volume(
         包含成交量信息的格式化数据
     """
     try:
-        data = crypto_service.coinglass_service.get_trade_volume(
+        data = crypto_service.service.get_trade_volume(
             symbol, granularity, lookback_count
         )
         if not data:
@@ -1575,14 +1537,14 @@ async def coinglass_get_trade_volume(
             return data
 
         # 格式化结果
-        formatted_data = crypto_service.coinglass_service.format_trade_volume(data)
+        formatted_data = crypto_service.service.format_trade_volume(data)
         return formatted_data
     except Exception as e:
         return f"获取成交量信息时出错: {str(e)}"
 
 
 @mcp.tool()
-async def coinglass_get_trade_amount(
+async def get_trade_amount(
     symbol: str, granularity: str = "1h", lookback_count: int = 100
 ) -> str:
     """获取虚拟币的成交额信息 (Coinglass API)
@@ -1596,7 +1558,7 @@ async def coinglass_get_trade_amount(
         包含成交额信息的格式化数据
     """
     try:
-        data = crypto_service.coinglass_service.get_trade_amount(
+        data = crypto_service.service.get_trade_amount(
             symbol, granularity, lookback_count
         )
         if not data:
@@ -1607,14 +1569,14 @@ async def coinglass_get_trade_amount(
             return data
 
         # 格式化结果
-        formatted_data = crypto_service.coinglass_service.format_trade_amount(data)
+        formatted_data = crypto_service.service.format_trade_amount(data)
         return formatted_data
     except Exception as e:
         return f"获取成交额信息时出错: {str(e)}"
 
 
 @mcp.tool()
-async def coinglass_get_exchange_position(symbol: str) -> str:
+async def get_exchange_position(symbol: str) -> str:
     """获取虚拟币在各交易所的持仓分布 (Coinglass API)
 
     Args:
@@ -1624,7 +1586,7 @@ async def coinglass_get_exchange_position(symbol: str) -> str:
         包含各交易所持仓分布的格式化信息
     """
     try:
-        data = crypto_service.coinglass_service.get_exchange_position(symbol)
+        data = crypto_service.service.get_exchange_position(symbol)
         if not data:
             return f"未找到关于 {symbol} 的交易所持仓分布信息"
 
@@ -1642,7 +1604,7 @@ async def coinglass_get_exchange_position(symbol: str) -> str:
                 return f"数据项 #{i + 1} 格式异常，应为字典，实际为 {type(item)}"
 
         # 格式化结果
-        formatted_data = crypto_service.coinglass_service.format_exchange_position(data)
+        formatted_data = crypto_service.service.format_exchange_position(data)
         return formatted_data
     except Exception as e:
         return f"获取交易所持仓分布信息时出错: {str(e)}"
