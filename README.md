@@ -87,6 +87,7 @@ Smithery安装:
 ## 工具
 
 ### CoinGecko和Bitget API工具
+
 * `get_coin_price` - 获取指定虚拟币的当前价格
 * `get_trending_coins` - 获取当前热门虚拟币列表
 * `get_coin_detail` - 获取虚拟币的详细信息
@@ -96,9 +97,10 @@ Smithery安装:
 * `get_k_line_data` - 获取虚拟币的K线数据
 
 ### Coinglass API工具
+
 * `coinglass_get_coin_info` - 获取虚拟币的合约市场信息
 * `coinglass_get_kline_data` - 获取虚拟币合约的K线数据
-* `coinglass_get_position_info` - 获取虚拟币合约的持仓信息
+* `coinglass_get_position_info` - 获取虚拟币合约的持仓信息 
 * `coinglass_get_trade_volume` - 获取虚拟币合约的成交量信息
 * `coinglass_get_trade_amount` - 获取虚拟币的成交额信息
 * `coinglass_get_exchange_position` - 获取虚拟币在各交易所的持仓分布
