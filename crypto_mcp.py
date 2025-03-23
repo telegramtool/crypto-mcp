@@ -588,9 +588,11 @@ class CoinglassService:
         result += "-" * 60 + "\n"
 
         for item in data:
-            result += (
-                f"{item['exchangeName']}\t\t{item['oi']}\t\t{item['oiPercent']}%\n"
-            )
+            exchange_name = item.get("exchangeName", "未知交易所")
+            oi = item.get("oi", "未知")
+            oi_percent = item.get("oiPercent", "未知")
+
+            result += f"{exchange_name}\t\t{oi}\t\t{oi_percent}%\n"
 
         return result
 
@@ -1523,6 +1525,15 @@ async def coinglass_get_exchange_position(symbol: str) -> str:
         # 如果数据是错误消息字符串，直接返回
         if isinstance(data, str):
             return data
+
+        # 验证数据结构
+        if not isinstance(data, list):
+            return f"获取的数据格式异常，应为列表，实际为 {type(data)}"
+
+        # 检查数据内容
+        for i, item in enumerate(data):
+            if not isinstance(item, dict):
+                return f"数据项 #{i + 1} 格式异常，应为字典，实际为 {type(item)}"
 
         # 格式化结果
         formatted_data = crypto_service.coinglass_service.format_exchange_position(data)
